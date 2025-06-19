@@ -1,6 +1,7 @@
 package cl.duoc.ms_ventas_db.service;
 
 
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import cl.duoc.ms_ventas_db.model.dto.DetallePedidoDTO;
 import cl.duoc.ms_ventas_db.model.dto.PedidoDTO;
 import cl.duoc.ms_ventas_db.model.entities.DetallePedido;
+import cl.duoc.ms_ventas_db.model.entities.EstadoPedido;
 import cl.duoc.ms_ventas_db.model.entities.Pedido;
 import cl.duoc.ms_ventas_db.model.repository.PedidoRepository;
 
@@ -29,12 +31,35 @@ public class PedidoService {
         }
         return pedidoDTO;
     }
-    public Pedido translateDtoToEntity(PedidoDTO pedidoDTO){
-        Pedido pedido = null;
+    public PedidoDTO createPedido(PedidoDTO pedidoDTO) {
+    // Convertimos el DTO a entidad
+    Pedido pedido = translateDtoToEntity(pedidoDTO);
 
+    // Guardamos en la base de datos (gracias a cascade, también guarda los detalles)
+    Pedido pedidoGuardado = pedidoRepository.save(pedido);
+
+    // Devolvemos el pedido recién guardado convertido a DTO
+    return translateEntityToDto(pedidoGuardado);
+}
+
+    public Pedido translateDtoToEntity(PedidoDTO pedidoDTO){
+        Pedido pedido = new Pedido();
+        pedido.setClienteId(pedidoDTO.getClienteId());
+        pedido.setFecha(Timestamp.valueOf(pedidoDTO.getFecha()));
+        pedido.setEstado(EstadoPedido.valueOf(pedidoDTO.getEstado()));
+        pedido.setTotal(pedidoDTO.getTotal());
+        pedido.setDescuentoId(pedidoDTO.getDescuentoId());
+        List<DetallePedido> detalles = translateListDtoDetalleToEntity(pedidoDTO.getDetalles());        
+        for (DetallePedido detalle : detalles) {
+            detalle.setPedido(pedido);
+        }
+
+        pedido.setDetalles(detalles);
+        
         return pedido;
 
     }
+
     public PedidoDTO translateEntityToDto(Pedido pedido){
         PedidoDTO pedidoDTO = new PedidoDTO();
         pedidoDTO.setId(pedido.getId());
@@ -50,6 +75,7 @@ public class PedidoService {
         pedidoDTO.setDetalles(translateListEntityToDtoDetalle(pedido.getDetalles()));
         return pedidoDTO;
     }
+
     public List<DetallePedidoDTO> translateListEntityToDtoDetalle(List<DetallePedido> detalles) {
         List<DetallePedidoDTO> lista = new ArrayList<>();
         for (DetallePedido detalle : detalles) {
@@ -60,6 +86,18 @@ public class PedidoService {
             dto.setCantidad(detalle.getCantidad());
             dto.setPrecioUnitario(detalle.getPrecioUnitario());
             lista.add(dto);
+        }
+        return lista;
+    }
+    public List<DetallePedido> translateListDtoDetalleToEntity(List<DetallePedidoDTO> detalles) {
+        List<DetallePedido> lista = new ArrayList<>();
+        for (DetallePedidoDTO detalle : detalles) {
+            DetallePedido entity = new DetallePedido();
+            entity.setId(detalle.getId());
+            entity.setProductoId(detalle.getProductoId());
+            entity.setCantidad(detalle.getCantidad());
+            entity.setPrecioUnitario(detalle.getPrecioUnitario());
+            lista.add(entity);
         }
         return lista;
     }
